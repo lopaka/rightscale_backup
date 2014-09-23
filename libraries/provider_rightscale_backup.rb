@@ -259,6 +259,16 @@ class Chef
           (node['cloud']['provider'] == 'ec2' && attachment.device_id == '/dev/sda1')
         end
 
+        # Reject temporary volumes on vsphere.
+        # Name attribute on volume should be or start with 'vsphere_temporary_volume'.
+        if node['cloud']['provider'] == 'vsphere'
+          attachments.reject! do |attachment|
+            volume_resource_uid = attachement.show.resource_uid.split(':')
+            volume_object = @api_client.volumes.index(:filter => ["resource_uid==#{volume_resource_uid}"]).first
+            volume_object.name =~ /^vsphere_temporary_volume/
+          end
+        end
+
         attachments.map { |attachment| attachment.href }
       end
 
