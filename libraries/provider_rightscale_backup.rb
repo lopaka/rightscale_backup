@@ -253,6 +253,7 @@ class Chef
         # This will be used to compare with the volumes currently attached to the instance.
         # The nickname is added to the volume when attached with rightscale_volume cookbook.
         # If the nickname does not match, it is assumed it was attached manually.
+        # Note: the 'name' filter uses partial matching.
         filtered_names_volume_hrefs = @api_client.volumes.index(:filter => ["name==#{@new_resource.nickname}"]).collect { |volume| volume.href }
 
         # Reject following attachments:
