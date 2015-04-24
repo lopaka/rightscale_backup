@@ -249,16 +249,25 @@ class Chef
       def get_volume_attachment_hrefs
         attachments = @api_client.volume_attachments.index(:filter => ["instance_href==#{get_instance_href}"])
 
+        # Create array of hrefs of volumes with matching nicknames.
+        # This will be used to compare with the volumes currently attached to the instance.
+        # The nickname is added to the volume when attached with rightscale_volume cookbook.
+        # If the nickname does not match, it is assumed it was attached manually.
+        # Note: the 'name' filter uses partial matching.
+        filtered_names_volume_hrefs = @api_client.volumes.index(:filter => ["name==#{@new_resource.nickname}"]).collect { |volume| volume.href }
+
         # Reject following attachments:
         #   - attachments whose device parameter is set to 'unknown'
         #   - gce boot disk - shown by resource_uid of /disks/boot-*
         #   - aws ebs boot disk  - shown by device_id as '/dev/sda1'
         #   - cloudstack boot disk  - shown by device_id as 'device_id:0'
+        #   - volume nickname does not match
         attachments.reject! do |attachment|
           attachment.device == 'unknown' ||
           attachment.resource_uid =~ /\/disks\/boot-/ ||
           (node['cloud']['provider'] == 'ec2' && attachment.device_id == '/dev/sda1') ||
-          (node['cloud']['provider'] == 'cloudstack' && attachment.device_id == 'device_id:0')
+          (node['cloud']['provider'] == 'cloudstack' && attachment.device_id == 'device_id:0') ||
+          !filtered_names_volume_hrefs.include?(attachment.links.detect { |link| link['rel'] == 'volume' }['href'])
         end
 
         attachments.map { |attachment| attachment.href }
